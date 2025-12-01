@@ -1,13 +1,17 @@
-# app.py - Unified aggregator with connectors for many countries
 from flask import Flask, request, jsonify
-import os, requests, io, csv, math, time
+import os, requests, io, csv
 
 app = Flask(__name__)
 
-# Secrets and API keys (set via environment variables on Render)
-AGG_SECRET = os.environ.get('AGG_SECRET', 'changeme')
-DATA_GOV_KEY = os.environ.get('DATA_GOV_KEY', '')         # US (data.gov)
-DATA_GOV_SG_KEY = os.environ.get('DATA_GOV_SG_KEY', '')   # Singapore (if needed)
+# Load keys from environment EXACTLY as Railway provides
+AGG_SECRET = os.environ.get("AGG_SECRET", "changeme")
+DATA_GOV_KEY = os.environ.get("DATA_GOV_KEY", "2vNIhXFeb9d2TH0ebiJ0GVVDJX5lof06jftXuXqR")
+
+print("==========================================")
+print("🔍 DEBUG: AGG_SECRET =", AGG_SECRET)
+print("🔍 DEBUG: DATA_GOV_KEY =", DATA_GOV_KEY)
+print("==========================================")
+
 
 # Optional: per-country CSV or API URLs (can be set as env VARS like SRC_UK_CSV)
 SOURCES = {
