@@ -99,56 +99,66 @@ def programs():
 # ---------------------------
 
 def fetch_scorecard(page=1, per_page=100):
-    """Fetch schools from US College Scorecard and return institution-level entries.
-       Note: Scorecard is institution-focused; program-level data is limited.
-    """
     if not DATA_GOV_KEY:
         return {'programs': [], 'meta': {'error': 'no_data_gov_key'}}
 
-    base = 'https://api.data.gov/ed/collegescorecard/v1/schools.json'
-    fields = ','.join([
-        'id',
-        'school.name',
-        'school.city',
-        'school.state',
-        'latest.cost.tuition.out_of_state',
-        'latest.cost.tuition.in_state',
-        # additional fields can be added here
-    ])
-    params = {
-        'api_key': DATA_GOV_KEY,
-        'fields': fields,
-        'per_page': per_page,
-        'page': max(0, page-1)
-    }
-    j = fetch_json(base, params=params)
-    if not isinstance(j, dict) or 'results' not in j:
-        return {'programs': [], 'meta': {'error': 'scorecard_fetch_failed', 'raw': j}}
+    url = "https://api.data.gov/ed/collegescorecard/v1/schools.json"
 
-    programs = []
-    for item in j.get('results', []):
-        name = item.get('school', {}).get('name') or None
-        city = item.get('school', {}).get('city') or None
-        state = item.get('school', {}).get('state') or None
+    params = {
+        "api_key": DATA_GOV_KEY,
+        "fields": "id,school.name,school.city,school.state,latest.cost.tuition.in_state,latest.cost.tuition.out_of_state",
+        "per_page": per_page,
+        "page": page - 1
+    }
+
+    print("DEBUG: Calling Scorecard API with key:", DATA_GOV_KEY)
+
+    j = fetch_json(url, params=params)
+
+    # if error or unexpected format
+    if not isinstance(j, dict) or "results" not in j:
+        return {
+            "programs": [],
+            "meta": {"error": "scorecard_fetch_failed", "raw": j}
+        }
+
+    progs = []
+    for item in j["results"]:
+        school = item.get("school", {})
+
+        name = school.get("name")
+        city = school.get("city")
+        state = school.get("state")
+
+        # Extract tuition
         tuition = None
         try:
-            tuition = item['latest']['cost']['tuition'].get('out_of_state') or item['latest']['cost']['tuition'].get('in_state')
-        except Exception:
-            tuition = None
+            tuition = item["latest"]["cost"]["tuition"].get("out_of_state") \
+                      or item["latest"]["cost"]["tuition"].get("in_state")
+        except:
+            pass
 
-        # Construct a more useful program-like entry: try to infer popular grad fields using heuristics (optional)
-        programs.append({
-            'name': (name or 'Unknown') + ' (various programs)',
-            'institution': name,
-            'degree_level': 'all',
-            'tuition_amount': tuition,
-            'tuition_currency': 'USD',
-            'country': 'US',
-            'city': city,
-            'source': 'scorecard',
-            'source_id': str(item.get('id'))
+        # Now produce a clean output record
+        progs.append({
+            "name": f"{name} (various programs)" if name else "Unknown School",
+            "institution": name,
+            "degree_level": "all",
+            "tuition_amount": tuition,
+            "tuition_currency": "USD",
+            "country": "US",
+            "city": city or state,
+            "source": "scorecard",
+            "source_id": str(item.get("id")),
         })
-    return {'programs': programs, 'meta': {'page': page, 'count': len(programs), 'more': False}}
+
+    return {
+        "programs": progs,
+        "meta": {
+            "page": page,
+            "count": len(progs),
+            "more": len(progs) == per_page
+        }
+    }
 
 def fetch_discoveruni(page=1, per_page=100):
     """DiscoverUni (UK) full-institutions CSV (institution-level)."""
