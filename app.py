@@ -111,35 +111,27 @@ def fetch_scorecard(page=1, per_page=100):
         "page": page - 1
     }
 
-    print("DEBUG: Calling Scorecard API with key:", DATA_GOV_KEY)
+    print("DEBUG: Calling Scorecard API with:", params)
 
     j = fetch_json(url, params=params)
 
-    # if error or unexpected format
     if not isinstance(j, dict) or "results" not in j:
-        return {
-            "programs": [],
-            "meta": {"error": "scorecard_fetch_failed", "raw": j}
-        }
+        return {"programs": [], "meta": {"error": "scorecard_fetch_failed", "raw": j}}
 
-    progs = []
+    programs = []
+
     for item in j["results"]:
-        school = item.get("school", {})
+        # Extract fields using flat keys
+        name = item.get("school.name")
+        city = item.get("school.city")
+        state = item.get("school.state")
 
-        name = school.get("name")
-        city = school.get("city")
-        state = school.get("state")
+        tuition = (
+            item.get("latest.cost.tuition.out_of_state")
+            or item.get("latest.cost.tuition.in_state")
+        )
 
-        # Extract tuition
-        tuition = None
-        try:
-            tuition = item["latest"]["cost"]["tuition"].get("out_of_state") \
-                      or item["latest"]["cost"]["tuition"].get("in_state")
-        except:
-            pass
-
-        # Now produce a clean output record
-        progs.append({
+        programs.append({
             "name": f"{name} (various programs)" if name else "Unknown School",
             "institution": name,
             "degree_level": "all",
@@ -152,11 +144,11 @@ def fetch_scorecard(page=1, per_page=100):
         })
 
     return {
-        "programs": progs,
+        "programs": programs,
         "meta": {
             "page": page,
-            "count": len(progs),
-            "more": len(progs) == per_page
+            "count": len(programs),
+            "more": len(programs) == per_page
         }
     }
 
